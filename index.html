@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presensi & Jurnal – RUANG PRODUKSI</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef5fc;--card:#fff;--ink:#1f3347;--mut:#62788d;--line:#d3e2f1;--acc:#3a78b0;--acc2:#bcd9f2;--ok:#2e8b63;--bad:#c4503f;--r:12px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif}
+header{background:var(--acc);color:#fff;padding:18px 16px;border-bottom:6px solid var(--acc2)}
+header h1{margin:0;font:700 clamp(22px,5vw,34px)/1.1 "Barlow Semi Condensed",sans-serif;letter-spacing:.04em}
+header p{margin:4px 0 0;opacity:.9;font-size:14px}
+main{max-width:980px;margin:0 auto;padding:14px}
+nav{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}
+nav button{flex:1;min-width:92px;padding:10px 12px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:var(--r);font:600 15px Barlow,sans-serif;cursor:pointer}
+nav button[aria-selected=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+section{display:none;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+section.on{display:block}
+h2{margin:0 0 12px;font:700 22px "Barlow Semi Condensed",sans-serif}
+label{display:block;font-size:14px;font-weight:600;color:var(--mut);margin:0 0 4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:84px;resize:vertical}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:12px}
+.btn{padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:600 15px Barlow,sans-serif;cursor:pointer}
+.btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.del{background:transparent;color:var(--bad);border:1px solid var(--bad);padding:4px 10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.sum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;font-size:14px}
+.sum span{padding:3px 10px;border-radius:99px;border:1px solid var(--line)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--mut)}
+.st{display:flex;gap:4px;flex-wrap:wrap}
+.st label{margin:0;font-size:13px;color:var(--ink);cursor:pointer}
+.st input{position:absolute;opacity:0;width:0;height:0}
+.st span{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.st input:checked+span{color:#fff;border-color:transparent}
+.st input[value=Hadir]:checked+span{background:var(--ok)}
+.st input[value=Izin]:checked+span{background:var(--acc)}
+.st input[value=Sakit]:checked+span{background:#a56f00}
+.st input[value="Tidak Hadir"]:checked+span{background:var(--bad)}
+.st input:focus-visible+span{outline:3px solid var(--acc)}
+.ket{min-width:110px;padding:6px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}.thumbs img.big{width:100%;max-width:320px;height:auto}.thumbs span{position:relative}
+.empty{color:var(--mut);padding:14px 0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px;display:none;font-weight:600}
+@media(max-width:640px){td,th{padding:6px 4px}.hide-s{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>RUANG PRODUKSI</h1>
+  <p id="mode"></p>
+</header>
+<main>
+<nav role="tablist">
+  <button role="tab" data-t="presensi" aria-selected="true">Presensi</button>
+  <button role="tab" data-t="jurnal" aria-selected="false">Jurnal</button>
+  <button role="tab" data-t="nama" aria-selected="false">Daftar nama</button>
+  <button role="tab" data-t="ekspor" aria-selected="false">Ekspor</button>
+</nav>
+
+<section id="presensi" class="on">
+  <h2>Presensi</h2>
+  <div class="row"><div><label for="pTgl">Tanggal</label><input type="date" id="pTgl"></div></div>
+  <div class="sum" id="pSum"></div>
+  <div class="tw"><table><thead><tr><th>Nama</th><th>Status</th><th>Keterangan</th></tr></thead><tbody id="pBody"></tbody></table></div>
+  <div class="bar"><button class="btn" id="pSimpan">Simpan presensi</button><button class="btn sec" id="pSemua">Semua hadir</button></div>
+</section>
+
+<section id="jurnal">
+  <h2>Jurnal harian</h2>
+  <div class="row">
+    <div><label for="jTgl">Tanggal</label><input type="date" id="jTgl"></div>
+    <div><label for="jMulai">Jam mulai</label><input type="time" id="jMulai"></div>
+    <div><label for="jSelesai">Jam selesai</label><input type="time" id="jSelesai"></div>
+    <div><label for="jPenulis">Ditulis oleh</label><input id="jPenulis" placeholder="Nama pengisi"></div>
+  </div>
+  <div class="row">
+    <div style="grid-column:1/-1"><label for="jKegiatan">Kegiatan</label><textarea id="jKegiatan" placeholder="Apa yang dikerjakan hari ini?"></textarea></div>
+    <div style="grid-column:1/-1"><label for="jCatatan">Hasil / catatan</label><textarea id="jCatatan" placeholder="Hasil, kendala, atau tindak lanjut"></textarea></div>
+    <div style="grid-column:1/-1"><label for="jFoto">Foto kegiatan (maksimal 3)</label><input type="file" id="jFoto" accept="image/*" multiple><div class="thumbs" id="jPrev"></div></div>
+  </div>
+  <div class="bar"><button class="btn" id="jSimpan">Simpan jurnal</button></div>
+  <h2 style="margin-top:22px">Riwayat jurnal</h2>
+  <div class="tw"><table><thead><tr><th>Tanggal</th><th>Jam</th><th>Kegiatan</th><th class="hide-s">Catatan</th><th></th></tr></thead><tbody id="jBody"></tbody></table></div>
+</section>
+
+<section id="nama">
+  <h2>Daftar nama</h2>
+  <div class="row"><div><label for="nBaru">Tambah nama</label><input id="nBaru" placeholder="Nama lengkap"></div></div>
+  <div class="bar" style="margin:0 0 12px"><button class="btn" id="nTambah">Tambah</button></div>
+  <div class="tw"><table><tbody id="nBody"></tbody></table></div>
+</section>
+
+<section id="ekspor">
+  <h2>Ekspor laporan</h2>
+  <div class="row">
+    <div><label for="eDari">Dari tanggal</label><input type="date" id="eDari"></div>
+    <div><label for="eSampai">Sampai tanggal</label><input type="date" id="eSampai"></div>
+  </div>
+  <div class="bar">
+    <button class="btn" id="eXls">Unduh Excel</button>
+    <button class="btn" id="ePdf">Unduh PDF</button>
+  </div>
+  <h2 style="margin-top:22px">Penyimpanan online</h2>
+  <p style="color:var(--mut);margin:0 0 10px">Tempel alamat Web App dari Google Apps Script dan sandi yang sama dengan di <b>Code.gs</b>. Isi sekali di tiap perangkat.</p>
+  <div class="row"><div style="grid-column:1/-1"><label for="oUrl">Alamat Web App</label><input id="oUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+  <div><label for="oKunci">Sandi</label><input id="oKunci" type="password" autocomplete="off"></div></div>
+  <div class="bar" style="margin-top:0"><button class="btn" id="oSimpan">Sambungkan</button><button class="btn sec" id="oMuat">Muat ulang data</button><button class="btn sec" id="oPutus">Putuskan</button></div>
+  <h2 style="margin-top:22px">Cadangan data</h2>
+  <p style="color:var(--mut);margin:0 0 10px">Data tersimpan di browser perangkat ini. Unduh cadangan agar bisa dipindah ke perangkat lain.</p>
+  <div class="bar" style="margin-top:0">
+    <button class="btn sec" id="bUnduh">Unduh cadangan</button>
+    <button class="btn sec" id="bPulih">Pulihkan cadangan</button>
+    <input type="file" id="bFile" accept=".json" hidden>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script>
+const RUANG="RUANG PRODUKSI",KEY="ruangProduksiV1",STS=["Hadir","Tidak Hadir","Izin","Sakit"];
+let db={nama:[],presensi:{},jurnal:[]};
+try{const s=localStorage.getItem(KEY);if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
+const $=id=>document.getElementById(id);
+const save=()=>{if(ON())return true;try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){toast("Penyimpanan browser penuh atau tidak tersedia");return false}};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(t._t);t._t=setTimeout(()=>t.style.display="none",2200)}
+const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const fmt=d=>d?d.split("-").reverse().join("/"):"";
+
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===b.dataset.t));
+});
+
+const CK=KEY+"_cfg",CFG=()=>{try{return JSON.parse(localStorage.getItem(CK)||"null")}catch(e){return null}},ON=()=>{const c=CFG();return !!(c&&c.url&&c.kunci)};
+const renderAll=()=>{renderNama();renderPresensi();renderJurnal();$("mode").textContent=ON()?"Tersambung online: data tersimpan di Google Drive":"Mode lokal: data hanya di perangkat ini"};
+async function kirim(op){const c=CFG();toast("Menyimpan online…");
+  try{const r=await fetch(c.url,{method:"POST",body:JSON.stringify(Object.assign({kunci:c.kunci},op))});const d=await r.json();if(d.error)throw d.error;db=d;renderAll();toast("Tersimpan online");return true}
+  catch(e){toast("Gagal menyimpan online: "+(e.message||e));return false}}
+async function muat(){const c=CFG();
+  try{const r=await fetch(c.url+(c.url.includes("?")?"&":"?")+"kunci="+encodeURIComponent(c.kunci));const d=await r.json();if(d.error)throw d.error;db=d;renderAll();toast("Data online dimuat")}
+  catch(e){toast("Gagal memuat data online: "+(e.message||e))}}
+const aksi=(op,lokal)=>{if(ON())return kirim(op);lokal();return Promise.resolve(save())};
+
+/* Daftar nama */
+function renderNama(){
+  $("nBody").innerHTML=db.nama.length?db.nama.map((n,i)=>`<tr><td>${i+1}. ${esc(n.nama)}</td><td style="text-align:right"><button class="btn del" data-id="${n.id}">Hapus</button></td></tr>`).join(""):`<tr><td class="empty">Belum ada nama. Tambahkan nama peserta di atas.</td></tr>`;
+  $("nBody").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
+    if(!confirm("Hapus nama ini dari daftar? Riwayat presensi lama tetap tersimpan."))return;
+    aksi({op:"nama-",id:b.dataset.id},()=>{db.nama=db.nama.filter(n=>n.id!==b.dataset.id)}).then(()=>{renderNama();renderPresensi()})});
+}
+$("nTambah").onclick=async()=>{const v=$("nBaru").value.trim();if(!v)return toast("Isi nama dulu");
+  const n={id:uid(),nama:v};if(await aksi({op:"nama+",v:n},()=>db.nama.push(n))){$("nBaru").value="";renderNama();renderPresensi()}};
+$("nBaru").onkeydown=e=>{if(e.key==="Enter")$("nTambah").click()};
+
+/* Presensi */
+function renderPresensi(){
+  const tgl=$("pTgl").value,data=db.presensi[tgl]||{};
+  $("pBody").innerHTML=db.nama.length?db.nama.map(n=>{
+    const d=data[n.id]||{};
+    return `<tr data-id="${n.id}"><td>${esc(n.nama)}</td><td><div class="st">${STS.map(s=>`<label><input type="radio" name="s${n.id}" value="${s}" ${(d.status==="Alpa"?"Tidak Hadir":d.status)===s?"checked":""}><span>${s}</span></label>`).join("")}</div></td><td><input class="ket" value="${esc(d.ket||"")}" aria-label="Keterangan ${esc(n.nama)}"></td></tr>`}).join(""):`<tr><td colspan="3" class="empty">Daftar nama masih kosong. Buka tab Daftar nama untuk menambahkan.</td></tr>`;
+  $("pBody").querySelectorAll("input[type=radio]").forEach(r=>r.onchange=hitung);hitung();
+}
+function hitung(){
+  const c={Hadir:0,Izin:0,Sakit:0,Alpa:0};
+  $("pBody").querySelectorAll("input[type=radio]:checked").forEach(r=>c[r.value]++);
+  $("pSum").innerHTML=STS.map(s=>`<span>${s}: <b>${c[s]}</b></span>`).join("");
+}
+$("pSimpan").onclick=async()=>{
+  const tgl=$("pTgl").value;if(!tgl)return toast("Pilih tanggal");
+  const o={};$("pBody").querySelectorAll("tr[data-id]").forEach(tr=>{
+    const r=tr.querySelector("input[type=radio]:checked");
+    if(r)o[tr.dataset.id]={status:r.value,ket:tr.querySelector(".ket").value.trim()}});
+  if(await aksi({op:"presensi",tgl,v:o},()=>{db.presensi[tgl]=o}))toast("Presensi tersimpan")};
+$("pSemua").onclick=()=>{$("pBody").querySelectorAll("tr[data-id]").forEach(tr=>tr.querySelector("input[value=Hadir]").checked=true);hitung()};
+$("pTgl").onchange=renderPresensi;
+
+/* Jurnal */
+function renderJurnal(){
+  const l=[...db.jurnal].sort((a,b)=>(b.tgl+b.mulai).localeCompare(a.tgl+a.mulai));
+  $("jBody").innerHTML=l.length?l.map(j=>`<tr><td>${fmt(j.tgl)}</td><td>${esc(j.mulai)}${j.selesai?"–"+esc(j.selesai):""}</td><td>${esc(j.kegiatan)}<div style="color:var(--mut);font-size:13px">${esc(j.penulis)}</div><div class="thumbs">${(j.foto||[]).map(f=>`<img src="${f}" alt="Foto kegiatan" title="Klik untuk memperbesar">`).join("")}</div></td><td class="hide-s">${esc(j.catatan)}</td><td><button class="btn del" data-id="${j.id}">Hapus</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">Belum ada jurnal. Isi formulir di atas lalu simpan.</td></tr>`;
+  $("jBody").querySelectorAll(".thumbs img").forEach(i=>i.onclick=()=>i.classList.toggle("big"));
+  $("jBody").querySelectorAll("[data-id]").forEach(b=>b.onclick=()=>{
+    if(!confirm("Hapus jurnal ini?"))return;aksi({op:"jurnal-",id:b.dataset.id},()=>{db.jurnal=db.jurnal.filter(j=>j.id!==b.dataset.id)}).then(renderJurnal)});
+}
+$("jSimpan").onclick=async()=>{
+  const j={id:uid(),tgl:$("jTgl").value,mulai:$("jMulai").value,selesai:$("jSelesai").value,penulis:$("jPenulis").value.trim(),kegiatan:$("jKegiatan").value.trim(),catatan:$("jCatatan").value.trim(),foto:fotoBaru.slice()};
+  if(!j.tgl||!j.kegiatan)return toast("Tanggal dan kegiatan wajib diisi");
+  const ok=await aksi({op:"jurnal+",v:j},()=>db.jurnal.push(j));
+  if(!ok){if(!ON())db.jurnal=db.jurnal.filter(x=>x.id!==j.id);return toast("Jurnal belum tersimpan. Cek koneksi, atau kurangi foto")}
+  ["jMulai","jSelesai","jKegiatan","jCatatan"].forEach(i=>$(i).value="");fotoBaru=[];renderPrev();
+  try{localStorage.setItem(KEY+"_penulis",j.penulis)}catch(e){}
+  renderJurnal();toast("Jurnal tersimpan")};
+
+let fotoBaru=[];
+function kompres(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);
+  img.onload=()=>{const k=Math.min(1,800/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",.65))};
+  img.onerror=()=>rej();img.src=u})}
+function renderPrev(){$("jPrev").innerHTML=fotoBaru.map((f,i)=>`<span><img src="${f}" alt="Pratinjau foto ${i+1}"><button class="btn del" data-i="${i}" style="position:absolute;top:2px;right:2px;padding:0 7px;background:#fff" aria-label="Hapus foto ${i+1}">×</button></span>`).join("");
+  $("jPrev").querySelectorAll("button").forEach(b=>b.onclick=()=>{fotoBaru.splice(+b.dataset.i,1);renderPrev()})}
+$("jFoto").onchange=async e=>{for(const f of [...e.target.files]){if(fotoBaru.length>=3){toast("Maksimal 3 foto");break}
+  try{fotoBaru.push(await kompres(f))}catch(x){toast("Foto tidak bisa dibaca")}}e.target.value="";renderPrev()};
+
+/* Ekspor */
+function rentang(){
+  const a=$("eDari").value||"0000-00-00",b=$("eSampai").value||"9999-99-99";
+  const namaMap=Object.fromEntries(db.nama.map(n=>[n.id,n.nama]));
+  const pres=[];Object.keys(db.presensi).sort().filter(t=>t>=a&&t<=b).forEach(t=>{
+    Object.entries(db.presensi[t]).forEach(([id,d])=>pres.push([fmt(t),namaMap[id]||"(nama dihapus)",d.status==="Alpa"?"Tidak Hadir":d.status,d.ket||""]))});
+  const jl=db.jurnal.filter(j=>j.tgl>=a&&j.tgl<=b).sort((x,y)=>(x.tgl+x.mulai).localeCompare(y.tgl+y.mulai));
+  const jur=jl.map(j=>[fmt(j.tgl),j.mulai+(j.selesai?"–"+j.selesai:""),j.penulis,j.kegiatan,j.catatan,(j.foto||[]).length]);
+  return{pres,jur,jl,a,b};
+}
+const label=r=>(r.a==="0000-00-00"&&r.b==="9999-99-99")?"Semua tanggal":`${r.a==="0000-00-00"?"awal":fmt(r.a)} s/d ${r.b==="9999-99-99"?"akhir":fmt(r.b)}`;
+$("eXls").onclick=()=>{
+  if(!window.XLSX)return toast("Pustaka Excel belum termuat. Cek koneksi internet.");
+  const r=rentang();if(!r.pres.length&&!r.jur.length)return toast("Tidak ada data pada rentang ini");
+  const wb=XLSX.utils.book_new();
+  const w1=XLSX.utils.aoa_to_sheet([[RUANG+" – Presensi"],["Periode: "+label(r)],[],["Tanggal","Nama","Status","Keterangan"],...r.pres]);
+  w1["!cols"]=[{wch:12},{wch:30},{wch:10},{wch:30}];
+  const w2=XLSX.utils.aoa_to_sheet([[RUANG+" – Jurnal harian"],["Periode: "+label(r)],[],["Tanggal","Jam","Ditulis oleh","Kegiatan","Hasil / catatan","Jumlah foto"],...r.jur]);
+  w2["!cols"]=[{wch:12},{wch:13},{wch:20},{wch:45},{wch:40},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,w1,"Presensi");XLSX.utils.book_append_sheet(wb,w2,"Jurnal");
+  XLSX.writeFile(wb,`ruang-produksi-${today()}.xlsx`);
+};
+$("ePdf").onclick=()=>{
+  if(!window.jspdf)return toast("Pustaka PDF belum termuat. Cek koneksi internet.");
+  const r=rentang();if(!r.pres.length&&!r.jur.length)return toast("Tidak ada data pada rentang ini");
+  const doc=new jspdf.jsPDF({orientation:"landscape"});
+  doc.setFontSize(16);doc.text(RUANG,14,16);doc.setFontSize(10);doc.text("Periode: "+label(r),14,22);
+  let y=28;
+  if(r.pres.length){doc.setFontSize(12);doc.text("Presensi",14,y+4);
+    doc.autoTable({startY:y+7,head:[["Tanggal","Nama","Status","Keterangan"]],body:r.pres,headStyles:{fillColor:[58,120,176]},styles:{fontSize:9}});y=doc.lastAutoTable.finalY+8}
+  if(r.jur.length){if(y>170){doc.addPage();y=16}doc.setFontSize(12);doc.text("Jurnal harian",14,y+4);
+    doc.autoTable({startY:y+7,head:[["Tanggal","Jam","Ditulis oleh","Kegiatan","Hasil / catatan","Foto"]],body:r.jur,headStyles:{fillColor:[58,120,176]},styles:{fontSize:9},columnStyles:{3:{cellWidth:90},4:{cellWidth:60}}})}
+  const fj=r.jl.filter(j=>j.foto&&j.foto.length);
+  if(fj.length){doc.addPage();let fy=16;doc.setFontSize(12);doc.text("Foto kegiatan",14,fy);fy+=7;
+    fj.forEach(j=>{if(fy>150){doc.addPage();fy=16}doc.setFontSize(10);doc.text(fmt(j.tgl)+" – "+j.kegiatan.slice(0,100),14,fy+3);fy+=7;
+      j.foto.forEach((f,i)=>{const p=doc.getImageProperties(f);let w=62,h=w*p.height/p.width;if(h>46){h=46;w=h*p.width/p.height}doc.addImage(f,"JPEG",14+i*66,fy,w,h)});fy+=52})}
+  doc.save(`ruang-produksi-${today()}.pdf`);
+};
+
+/* Cadangan */
+$("bUnduh").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:"application/json"}));a.download=`cadangan-ruang-produksi-${today()}.json`;a.click()};
+$("bPulih").onclick=()=>$("bFile").click();
+$("bFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=async()=>{try{const d=JSON.parse(rd.result);if(!Array.isArray(d.nama)||!d.presensi||!Array.isArray(d.jurnal))throw 0;
+    if(!confirm("Data saat ini akan diganti dengan isi cadangan. Lanjutkan?"))return;
+    db=d;save();if(ON())await kirim({op:"ganti",v:d});renderAll();toast("Cadangan dipulihkan")}catch(x){toast("File cadangan tidak valid")}};rd.readAsText(f);e.target.value=""};
+
+/* Mulai */
+$("pTgl").value=$("jTgl").value=today();
+try{$("jPenulis").value=localStorage.getItem(KEY+"_penulis")||""}catch(e){}
+$("oUrl").value=(CFG()||{}).url||"";$("oKunci").value=(CFG()||{}).kunci||"";
+$("oSimpan").onclick=async()=>{const url=$("oUrl").value.trim(),kunci=$("oKunci").value.trim();if(!url||!kunci)return toast("Isi alamat dan sandi dulu");
+  const lokal=db;localStorage.setItem(CK,JSON.stringify({url,kunci}));
+  if((lokal.nama.length||lokal.jurnal.length)&&confirm("Gabungkan data di perangkat ini ke penyimpanan online?"))await kirim({op:"gabung",v:lokal});else await muat()};
+$("oMuat").onclick=()=>ON()?muat():toast("Belum tersambung online");
+$("oPutus").onclick=()=>{if(confirm("Putuskan sambungan online di perangkat ini? Data online tidak dihapus.")){localStorage.removeItem(CK);location.reload()}};
+renderAll();if(ON())muat();
+</script>
+</body>
+</html>
