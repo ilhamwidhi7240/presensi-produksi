@@ -103,9 +103,15 @@ th{font-size:13px;color:var(--mut)}
     <div><label for="eDari">Dari tanggal</label><input type="date" id="eDari"></div>
     <div><label for="eSampai">Sampai tanggal</label><input type="date" id="eSampai"></div>
   </div>
+  <div class="row">
+    <div><label for="eInstansi">Jabatan penandatangan kiri</label><input id="eInstansi" placeholder="Kepala SMKS YP 17 Selorejo"></div>
+    <div><label for="eKepsek">Nama Kepala Sekolah</label><input id="eKepsek" placeholder="ANIKE SRIAYULITA, S.Pd"></div>
+    <div><label for="ePj">Nama petugas produksi</label><input id="ePj" placeholder="FANY META NURDIANA, S.Pd"></div>
+  </div>
   <div class="bar">
     <button class="btn" id="eXls">Unduh Excel</button>
-    <button class="btn" id="ePdf">Unduh PDF</button>
+    <button class="btn" id="ePdf">PDF Jurnal</button>
+    <button class="btn" id="ePdfP">PDF Presensi</button>
   </div>
   <h2 style="margin-top:22px">Penyimpanan online</h2>
   <p style="color:var(--mut);margin:0 0 10px">Tempel alamat Web App dari Google Apps Script dan sandi yang sama dengan di <b>Code.gs</b>. Isi sekali di tiap perangkat.</p>
@@ -123,7 +129,7 @@ th{font-size:13px;color:var(--mut)}
 </main>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script>
@@ -224,33 +230,68 @@ function rentang(){
   return{pres,jur,jl,a,b};
 }
 const label=r=>(r.a==="0000-00-00"&&r.b==="9999-99-99")?"Semua tanggal":`${r.a==="0000-00-00"?"awal":fmt(r.a)} s/d ${r.b==="9999-99-99"?"akhir":fmt(r.b)}`;
-$("eXls").onclick=()=>{
-  if(!window.XLSX)return toast("Pustaka Excel belum termuat. Cek koneksi internet.");
-  const r=rentang();if(!r.pres.length&&!r.jur.length)return toast("Tidak ada data pada rentang ini");
-  const wb=XLSX.utils.book_new();
-  const w1=XLSX.utils.aoa_to_sheet([[RUANG+" – Presensi"],["Periode: "+label(r)],[],["Tanggal","Nama","Status","Keterangan"],...r.pres]);
-  w1["!cols"]=[{wch:12},{wch:30},{wch:10},{wch:30}];
-  const w2=XLSX.utils.aoa_to_sheet([[RUANG+" – Jurnal harian"],["Periode: "+label(r)],[],["Tanggal","Jam","Ditulis oleh","Kegiatan","Hasil / catatan","Jumlah foto"],...r.jur]);
-  w2["!cols"]=[{wch:12},{wch:13},{wch:20},{wch:45},{wch:40},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,w1,"Presensi");XLSX.utils.book_append_sheet(wb,w2,"Jurnal");
-  XLSX.writeFile(wb,`ruang-produksi-${today()}.xlsx`);
-};
+const BLN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const bln=k=>BLN[+k.slice(5)-1]+" "+k.slice(0,4);
+const grupBln=(a,kf)=>{const g={};a.forEach(x=>{const k=kf(x);(g[k]=g[k]||[]).push(x)});return g};
+const jamTxt=j=>(j.mulai+(j.selesai?"-"+j.selesai:"")).replace(/:/g,".");
+function cetakCfg(){const c={ins:$("eInstansi").value.trim(),kep:$("eKepsek").value.trim(),pj:$("ePj").value.trim()};
+  try{localStorage.setItem(KEY+"_cetak",JSON.stringify(c))}catch(e){}
+  return{jab:c.ins||"Kepala SMKS YP 17 Selorejo",kep:c.kep||"ANIKE SRIAYULITA, S.Pd",pj:c.pj||"FANY META NURDIANA, S.Pd"}}
+function bangunPdf(judul,head,lebar,grup,baris){
+  const doc=new jspdf.jsPDF({orientation:"portrait",unit:"mm",format:[215,330]}),W=215,M=15,c=cetakCfg(),adaFoto=head[head.length-1]==="Foto";
+  const fz=j=>(j.foto||[]).map(f=>{const p=doc.getImageProperties(f);let w=54,h=w*p.height/p.width;if(h>45){h=45;w=h*p.width/p.height}return{f,w,h}});
+  Object.keys(grup).sort().forEach((k,gi)=>{
+    if(gi)doc.addPage();
+    doc.setFont("times","bold");doc.setFontSize(16);doc.text(judul,W/2,22,{align:"center"});doc.text(RUANG,W/2,30,{align:"center"});
+    doc.setFont("times","normal");doc.setFontSize(11);doc.text("Bulan "+bln(k),W/2,36,{align:"center"});
+    const items=grup[k];
+    doc.autoTable({startY:41,theme:"grid",margin:{left:M,right:M,top:20,bottom:20},head:[head],body:items.map(baris),columnStyles:lebar,
+      styles:{font:"times",fontSize:10,textColor:0,lineColor:0,lineWidth:.2,cellPadding:1.5,valign:"top"},
+      headStyles:{fillColor:[255,255,255],textColor:0,fontStyle:"normal",fontSize:11,halign:"center"},
+      didParseCell:d=>{if(adaFoto&&d.section==="body"&&d.column.index===4){const z=fz(items[d.row.index]);if(z.length)d.cell.styles.minCellHeight=z.reduce((a,b)=>a+b.h+2,2)}},
+      didDrawCell:d=>{if(adaFoto&&d.section==="body"&&d.column.index===4){let y=d.cell.y+2;fz(items[d.row.index]).forEach(m=>{doc.addImage(m.f,"JPEG",d.cell.x+(d.cell.width-m.w)/2,y,m.w,m.h);y+=m.h+2})}}});
+    let y=Math.max(doc.lastAutoTable.finalY+14,262);if(y>292){doc.addPage();y=30}
+    doc.setFont("times","normal");doc.setFontSize(11);const L=25,R=120;
+    doc.text("Selorejo, ..........................",R,y);doc.text("Mengetahui,",L,y+5);
+    doc.text(c.jab,L,y+10);doc.text("Petugas Produksi",R,y+10);
+    doc.text(c.kep,L,y+30);doc.text(c.pj,R,y+30)});
+  return doc}
 $("ePdf").onclick=()=>{
   if(!window.jspdf)return toast("Pustaka PDF belum termuat. Cek koneksi internet.");
-  const r=rentang();if(!r.pres.length&&!r.jur.length)return toast("Tidak ada data pada rentang ini");
-  const doc=new jspdf.jsPDF({orientation:"landscape"});
-  doc.setFontSize(16);doc.text(RUANG,14,16);doc.setFontSize(10);doc.text("Periode: "+label(r),14,22);
-  let y=28;
-  if(r.pres.length){doc.setFontSize(12);doc.text("Presensi",14,y+4);
-    doc.autoTable({startY:y+7,head:[["Tanggal","Nama","Status","Keterangan"]],body:r.pres,headStyles:{fillColor:[58,120,176]},styles:{fontSize:9}});y=doc.lastAutoTable.finalY+8}
-  if(r.jur.length){if(y>170){doc.addPage();y=16}doc.setFontSize(12);doc.text("Jurnal harian",14,y+4);
-    doc.autoTable({startY:y+7,head:[["Tanggal","Jam","Ditulis oleh","Kegiatan","Hasil / catatan","Foto"]],body:r.jur,headStyles:{fillColor:[58,120,176]},styles:{fontSize:9},columnStyles:{3:{cellWidth:90},4:{cellWidth:60}}})}
-  const fj=r.jl.filter(j=>j.foto&&j.foto.length);
-  if(fj.length){doc.addPage();let fy=16;doc.setFontSize(12);doc.text("Foto kegiatan",14,fy);fy+=7;
-    fj.forEach(j=>{if(fy>150){doc.addPage();fy=16}doc.setFontSize(10);doc.text(fmt(j.tgl)+" – "+j.kegiatan.slice(0,100),14,fy+3);fy+=7;
-      j.foto.forEach((f,i)=>{const p=doc.getImageProperties(f);let w=62,h=w*p.height/p.width;if(h>46){h=46;w=h*p.width/p.height}doc.addImage(f,"JPEG",14+i*66,fy,w,h)});fy+=52})}
-  doc.save(`ruang-produksi-${today()}.pdf`);
-};
+  const r=rentang();if(!r.jl.length)return toast("Belum ada jurnal pada rentang ini");
+  bangunPdf("LAPORAN KEGIATAN",["Tanggal","Jam","Kegiatan","Catatan","Foto"],{0:{cellWidth:23},1:{cellWidth:26},2:{cellWidth:30},3:{cellWidth:48},4:{cellWidth:58}},
+    grupBln(r.jl,j=>j.tgl.slice(0,7)),j=>[fmt(j.tgl),jamTxt(j),j.kegiatan,j.catatan,""]).save(`laporan-kegiatan-${today()}.pdf`)};
+$("ePdfP").onclick=()=>{
+  if(!window.jspdf)return toast("Pustaka PDF belum termuat. Cek koneksi internet.");
+  const r=rentang();if(!r.pres.length)return toast("Belum ada presensi pada rentang ini");
+  bangunPdf("LAPORAN PRESENSI",["No","Tanggal","Nama","Status","Keterangan"],{0:{cellWidth:12,halign:"center"},1:{cellWidth:26,halign:"center"},3:{cellWidth:28,halign:"center"}},
+    grupBln(r.pres,p=>{const t=p[0].split("/");return t[2]+"-"+t[1]}),(p,i)=>[i+1,p[0],p[1],p[2],p[3]]).save(`laporan-presensi-${today()}.pdf`)};
+const dim=f=>new Promise(res=>{const i=new Image();i.onload=()=>res({w:i.width,h:i.height});i.src=f});
+$("eXls").onclick=async()=>{
+  if(!window.ExcelJS)return toast("Pustaka Excel belum termuat. Cek koneksi internet.");
+  const r=rentang();if(!r.jl.length&&!r.pres.length)return toast("Tidak ada data pada rentang ini");
+  toast("Menyiapkan Excel…");
+  const c=cetakCfg(),wb=new ExcelJS.Workbook(),B={style:"thin"},bd={top:B,left:B,bottom:B,right:B},F=(z,b)=>({name:"Times New Roman",size:z,bold:!!b});
+  const g=grupBln(r.jl,j=>j.tgl.slice(0,7));
+  for(const k of Object.keys(g).sort()){
+    const ws=wb.addWorksheet("Jurnal "+bln(k));ws.columns=[{width:13},{width:14},{width:20},{width:34},{width:34}];
+    ["LAPORAN KEGIATAN",RUANG,"Bulan "+bln(k)].forEach((t,i)=>{ws.mergeCells(i+1,1,i+1,5);const x=ws.getCell(i+1,1);x.value=t;x.alignment={horizontal:"center"};x.font=F(i<2?16:11,i<2)});
+    const h=ws.getRow(5);h.values=["Tanggal","Jam","Kegiatan","Catatan","Foto"];h.eachCell(x=>{x.border=bd;x.alignment={horizontal:"center"};x.font=F(11)});
+    let row=6;
+    for(const j of g[k]){
+      const im=[];for(const f of j.foto||[]){const d=await dim(f);let w=200,hh=w*d.h/d.w;if(hh>160){hh=160;w=hh*d.w/d.h}im.push({f,w,h:hh})}
+      const tot=im.reduce((a,b)=>a+b.h+6,6),rw=ws.getRow(row);
+      rw.values=[fmt(j.tgl),jamTxt(j),j.kegiatan,j.catatan,""];rw.height=Math.max(30,tot*.75);
+      rw.eachCell({includeEmpty:true},x=>{x.border=bd;x.alignment={vertical:"top",wrapText:true};x.font=F(10)});
+      let cum=6;for(const m of im){const id=wb.addImage({base64:m.f,extension:"jpeg"});ws.addImage(id,{tl:{col:4.05,row:row-1+cum/tot},ext:{width:m.w,height:m.h}});cum+=m.h+6}
+      row++}
+    row+=2;const put=(col,rr,t)=>{const x=ws.getCell(rr,col);x.value=t;x.font=F(11)};
+    put(4,row,"Selorejo, ..........................");put(1,row+1,"Mengetahui,");put(1,row+2,c.jab);put(4,row+2,"Petugas Produksi");put(1,row+6,c.kep);put(4,row+6,c.pj)}
+  if(r.pres.length){const ws=wb.addWorksheet("Presensi");ws.columns=[{width:13},{width:30},{width:14},{width:30}];
+    const h=ws.addRow(["Tanggal","Nama","Status","Keterangan"]);h.eachCell(x=>{x.border=bd;x.font=F(11,1);x.alignment={horizontal:"center"}});
+    r.pres.forEach(p=>ws.addRow(p).eachCell(x=>{x.border=bd;x.font=F(10)}))}
+  const buf=await wb.xlsx.writeBuffer(),a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));a.download=`laporan-ruang-produksi-${today()}.xlsx`;a.click();toast("Excel diunduh")};
 
 /* Cadangan */
 $("bUnduh").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:"application/json"}));a.download=`cadangan-ruang-produksi-${today()}.json`;a.click()};
@@ -269,6 +310,7 @@ $("oSimpan").onclick=async()=>{const url=$("oUrl").value.trim(),kunci=$("oKunci"
   if((lokal.nama.length||lokal.jurnal.length)&&confirm("Gabungkan data di perangkat ini ke penyimpanan online?"))await kirim({op:"gabung",v:lokal});else await muat()};
 $("oMuat").onclick=()=>ON()?muat():toast("Belum tersambung online");
 $("oPutus").onclick=()=>{if(confirm("Putuskan sambungan online di perangkat ini? Data online tidak dihapus.")){localStorage.removeItem(CK);location.reload()}};
+try{const c=JSON.parse(localStorage.getItem(KEY+"_cetak")||"{}");$("eInstansi").value=c.ins||"";$("eKepsek").value=c.kep||"";$("ePj").value=c.pj||""}catch(e){}
 renderAll();if(ON())muat();
 </script>
 </body>
